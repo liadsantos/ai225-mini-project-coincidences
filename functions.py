@@ -1,17 +1,15 @@
 import os
-import requests
+import csv
 import pandas as pd
-from math import log
-from bs4 import BeautifulSoup
+from math import log, ceil
 import pypopulation as pp
-from serpapi import GoogleSearch
 import country_converter as coco
 from geopy import distance as dist
 from geopy.geocoders import Nominatim
 from countryinfo import CountryInfo as ci
 
 # Initialize Nominatim API
-geolocator = Nominatim(user_agent="coincidencesInLocation")
+geolocator = Nominatim(user_agent="coincidencesInLocation", timeout=30)
 
 def print_full_rows(x):
     """
@@ -36,10 +34,14 @@ def compute_death_country(lat, long):
     Computes the country of a person according to 
     the latitude (lat) and logitude (long) provided
     """
+    #print(lat, long)
     location = geolocator.reverse(str(lat) + "," + str(long), language='en')
-    address = location.raw['address']
-
-    return address.get('country')
+    
+    if location is not None:
+        address = location.raw['address']
+        return address.get('country')
+    else:
+        return 'non found'
 
 
 def compute_description(lat_p1, lat_p2, long_p1, long_p2, district_size=20):
@@ -115,30 +117,33 @@ def define_constants(person, df):
     # main area
     area = df['main_area'].values[person]
 
-    return name, lat_birth, lat_death, lon_birth, lon_death, country_birth, country_death, area
+    # hits
+    hits = df['popularity'].values[person]
 
-def get_results_web(query):
+    return name, lat_birth, lat_death, lon_birth, lon_death, country_birth, country_death, area, hits
+
+
+def write_file(data, version):
     """
-    Return number of hints on Google for a certain query
+    Write the results in a 'csv' file
     """
-    params = {
-        "engine": "google",
-        "q": query,
-        #"api_key": os.getenv("myApiKeySerp")
-        "api_key": "e5028cd3407eed65fcede5f70821cdf8b1dac2310fbab567e092ab2961d985ec"
-    }
+    file_name = version + '.csv'
+    file_path = os.path.join("../tests/", file_name)
 
-    search = GoogleSearch(params)
-    results = search.get_dict()
+    # open a file with possibility to rewrite
+    with open(file_path, "a", newline="", encoding="utf-8") as file:
+        w = csv.writer(file)
+        w.writerows(data)
 
-    print(results)
 
-    return results["search_information"]['total_results']
-
-def get_results_web2(query):
-    r = requests.get('http://www.google.com/search',
-                     params={'q': query,
-                             "tbs": "li:1"})
-    r.raise_for_status()
-
-    soup = BeautifulSoup(r.text)
+def simplicity_person(category, log_hints, desc_music, desc_actor):
+    """
+    Calculates the simplicity of a person based on very popular
+    people in the category
+    """
+    if category == 'music':
+        desc_complexity = ceil(desc_music / (1+log_hints))    # avoid division by 0 in denominator
+    elif category == 'actor':
+        desc_complexity = ceil(desc_actor / (1+log_hints))
+    
+    return desc_complexity
