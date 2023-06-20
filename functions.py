@@ -48,7 +48,7 @@ def compute_description(lat_p1, lat_p2, long_p1, long_p2, district_size=20):
     """
     Computes the description complexity considering 
     the distance between places.
-    The `const` param accounts for the size of the villages
+    The `district_size` param accounts for the size of the villages
     """
     d_p1 = (lat_p1, long_p1)
     d_p2 = (lat_p2, long_p2)
